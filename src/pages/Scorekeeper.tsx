@@ -247,8 +247,14 @@ const Scorekeeper = () => {
           </Dialog>
         </div>
 
-        <Card className="p-6 mb-6 shadow-[var(--shadow-strong)]">
-          <div className="grid grid-cols-2 gap-4 text-center">
+        <Card className="p-6 mb-6 shadow-[var(--shadow-strong)] relative overflow-hidden">
+          <div 
+            className="absolute inset-0 opacity-5"
+            style={{
+              background: `linear-gradient(to right, ${game.team_a_color}, ${game.team_b_color})`
+            }}
+          />
+          <div className="grid grid-cols-2 gap-4 text-center relative">
             <div>
               <h2 className="text-2xl font-bold mb-2" style={{ color: game.team_a_color }}>
                 {game.team_a_name}
@@ -286,15 +292,21 @@ const Scorekeeper = () => {
         )}
 
         <div className="grid grid-cols-2 gap-4 mb-6">
-          <Card className="p-4">
-            <h3 className="font-bold mb-3 text-center" style={{ color: game.team_a_color }}>
+          <Card className="p-4 relative overflow-hidden" style={{ borderColor: game.team_a_color, borderWidth: '2px' }}>
+            <div 
+              className="absolute inset-0 opacity-5"
+              style={{ backgroundColor: game.team_a_color }}
+            />
+            <h3 className="font-bold mb-3 text-center relative" style={{ color: game.team_a_color }}>
               {game.team_a_name}
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <Button
                 onClick={() => handleTry("team_a")}
                 disabled={!!awaitingConversion || !isGameInPlay()}
-                className="w-full h-14 font-bold bg-gradient-to-r from-primary to-primary/80"
+                className="w-full h-14 font-bold"
+                variant="outline"
+                style={{ borderColor: game.team_a_color, color: game.team_a_color }}
               >
                 Try (5)
               </Button>
@@ -303,6 +315,7 @@ const Scorekeeper = () => {
                 disabled={!!awaitingConversion || !isGameInPlay()}
                 className="w-full h-14 font-bold"
                 variant="outline"
+                style={{ borderColor: game.team_a_color, color: game.team_a_color }}
               >
                 Penalty (3)
               </Button>
@@ -311,21 +324,28 @@ const Scorekeeper = () => {
                 disabled={!!awaitingConversion || !isGameInPlay()}
                 className="w-full h-14 font-bold"
                 variant="outline"
+                style={{ borderColor: game.team_a_color, color: game.team_a_color }}
               >
                 Drop Goal (3)
               </Button>
             </div>
           </Card>
 
-          <Card className="p-4">
-            <h3 className="font-bold mb-3 text-center" style={{ color: game.team_b_color }}>
+          <Card className="p-4 relative overflow-hidden" style={{ borderColor: game.team_b_color, borderWidth: '2px' }}>
+            <div 
+              className="absolute inset-0 opacity-5"
+              style={{ backgroundColor: game.team_b_color }}
+            />
+            <h3 className="font-bold mb-3 text-center relative" style={{ color: game.team_b_color }}>
               {game.team_b_name}
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-2 relative">
               <Button
                 onClick={() => handleTry("team_b")}
                 disabled={!!awaitingConversion || !isGameInPlay()}
-                className="w-full h-14 font-bold bg-gradient-to-r from-primary to-primary/80"
+                className="w-full h-14 font-bold"
+                variant="outline"
+                style={{ borderColor: game.team_b_color, color: game.team_b_color }}
               >
                 Try (5)
               </Button>
@@ -334,6 +354,7 @@ const Scorekeeper = () => {
                 disabled={!!awaitingConversion || !isGameInPlay()}
                 className="w-full h-14 font-bold"
                 variant="outline"
+                style={{ borderColor: game.team_b_color, color: game.team_b_color }}
               >
                 Penalty (3)
               </Button>
@@ -342,6 +363,7 @@ const Scorekeeper = () => {
                 disabled={!!awaitingConversion || !isGameInPlay()}
                 className="w-full h-14 font-bold"
                 variant="outline"
+                style={{ borderColor: game.team_b_color, color: game.team_b_color }}
               >
                 Drop Goal (3)
               </Button>
