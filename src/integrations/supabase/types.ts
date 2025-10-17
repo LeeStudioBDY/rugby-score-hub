@@ -59,6 +59,7 @@ export type Database = {
           game_status: string
           game_structure: string
           id: string
+          last_heartbeat: string | null
           scorekeeper_token: string
           team_a_color: string
           team_a_name: string
@@ -75,6 +76,7 @@ export type Database = {
           game_status?: string
           game_structure: string
           id?: string
+          last_heartbeat?: string | null
           scorekeeper_token: string
           team_a_color: string
           team_a_name: string
@@ -91,6 +93,7 @@ export type Database = {
           game_status?: string
           game_structure?: string
           id?: string
+          last_heartbeat?: string | null
           scorekeeper_token?: string
           team_a_color?: string
           team_a_name?: string
