@@ -70,6 +70,31 @@ const GameTimeline = ({ events, game }: GameTimelineProps) => {
         
         <div className="space-y-6">
           {events.map((event, index) => {
+            // Check if this is a game control event
+            if (event.team === "game_control") {
+              return (
+                <div key={event.id} className="relative">
+                  {/* Center dot for game control events */}
+                  <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-4 h-4 rounded-full border-4 border-background bg-primary z-10" />
+                  
+                  {/* Full-width strip for game control */}
+                  <div className="relative px-8">
+                    <div className="bg-gradient-to-r from-primary/10 via-primary/20 to-primary/10 border-y-2 border-primary/30 p-4 rounded-lg">
+                      <div className="text-center">
+                        <div className="font-bold text-lg text-primary">
+                          {formatEventType(event.event_type)}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-1">
+                          {getTimeLabel(event, index, events)}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+
+            // Regular scoring event
             const isTeamA = event.team === "team_a";
             const teamColor = isTeamA ? game.team_a_color : game.team_b_color;
             const teamName = isTeamA ? game.team_a_name : game.team_b_name;

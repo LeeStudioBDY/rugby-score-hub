@@ -232,6 +232,16 @@ const Scorekeeper = () => {
     if (!nextState) return;
 
     try {
+      // Record the game control event
+      await supabase.from("events").insert({
+        game_id: gameId,
+        team: "game_control",
+        event_type: nextState.label.toLowerCase().replace(/ /g, "_"),
+        points: 0,
+        period: nextState.nextPeriod,
+      });
+
+      // Update game state
       await supabase
         .from("games")
         .update({ 
