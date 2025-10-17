@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
-import { Trophy, Users, Info, Play } from "lucide-react";
+import { Trophy, Info, Play } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -95,18 +95,6 @@ const Home = () => {
             >
               <Trophy className="w-6 h-6 mr-3" />
               Start New Game
-            </Button>
-          </Card>
-
-          <Card className="p-8 shadow-[var(--shadow-strong)] border-2 hover:border-primary/50 transition-all">
-            <Button
-              onClick={() => navigate("/join")}
-              variant="outline"
-              className="w-full h-20 text-xl font-bold border-2 hover:bg-muted transition-all"
-              size="lg"
-            >
-              <Users className="w-6 h-6 mr-3" />
-              Join/View Game
             </Button>
           </Card>
 

@@ -127,6 +127,10 @@ const Scorekeeper = () => {
     return game?.game_status === "in_progress";
   };
 
+  const countTries = (team: "team_a" | "team_b") => {
+    return events.filter(e => e.team === team && e.event_type === "try").length;
+  };
+
   const getNextGameStateButton = () => {
     if (!game) return null;
     
@@ -217,13 +221,12 @@ const Scorekeeper = () => {
 
   const handleConversion = async (made: boolean) => {
     if (!awaitingConversion) return;
-    
+
     if (made) {
-      await recordEvent(awaitingConversion, "conversion_made", 2);
-    } else {
-      await recordEvent(awaitingConversion, "conversion_missed", 0);
+      await recordEvent(awaitingConversion, "conversion", 2);
     }
-    
+    // Don't record missed conversions in the timeline
+
     setAwaitingConversion(null);
   };
 
@@ -308,12 +311,22 @@ const Scorekeeper = () => {
                 {game.team_a_name}
               </h2>
               <div className="text-6xl font-extrabold">{game.team_a_score}</div>
+              {countTries("team_a") > 0 && (
+                <div className="text-sm font-semibold text-muted-foreground mt-1">
+                  {countTries("team_a")}T
+                </div>
+              )}
             </div>
             <div>
               <h2 className="text-2xl font-bold mb-2" style={{ color: game.team_b_color }}>
                 {game.team_b_name}
               </h2>
               <div className="text-6xl font-extrabold">{game.team_b_score}</div>
+              {countTries("team_b") > 0 && (
+                <div className="text-sm font-semibold text-muted-foreground mt-1">
+                  {countTries("team_b")}T
+                </div>
+              )}
             </div>
           </div>
         </Card>

@@ -62,12 +62,34 @@ This project is built with:
 
 ## How can I deploy this project?
 
+### Option 1: Render.com (Recommended)
+
+This project is configured for easy deployment to Render.com. See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions.
+
+Quick steps:
+1. Push your code to GitHub
+2. Connect your GitHub repo to Render
+3. Add environment variables (Supabase credentials)
+4. Deploy!
+
+### Option 2: Lovable
+
 Simply open [Lovable](https://lovable.dev/projects/752f2f39-93f3-443a-b284-6c7b23cb8bad) and click on Share -> Publish.
 
-## Can I connect a custom domain to my Lovable project?
+## Environment Variables
 
-Yes, you can!
+Create a `.env` file based on `.env.example`:
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+```
+VITE_SUPABASE_PROJECT_ID=your-project-id
+VITE_SUPABASE_PUBLISHABLE_KEY=your-anon-key
+VITE_SUPABASE_URL=https://your-project-id.supabase.co
+```
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+## Database Setup
+
+This project uses Supabase as the backend. After creating your Supabase project:
+
+1. Run the migrations in `supabase/migrations/` in order
+2. Verify that Row Level Security (RLS) policies are enabled
+3. Test that the database is accessible with the anon key
