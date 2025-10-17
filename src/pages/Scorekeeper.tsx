@@ -18,6 +18,7 @@ interface Game {
   team_b_score: number;
   game_status: string;
   current_period: number;
+  game_structure: string;
   viewer_token: string;
 }
 
@@ -84,6 +85,66 @@ const Scorekeeper = () => {
     };
   };
 
+  const isGameInPlay = () => {
+    return game?.game_status === "in_progress";
+  };
+
+  const getNextGameStateButton = () => {
+    if (!game) return null;
+    
+    const structure = game.game_structure;
+    const currentPeriod = game.current_period;
+    const status = game.game_status;
+
+    if (status === "not_started") {
+      return { label: "Kick Off", nextStatus: "in_progress", nextPeriod: 1 };
+    }
+
+    if (structure === "two_halves") {
+      if (currentPeriod === 1 && status === "in_progress") {
+        return { label: "Half Time", nextStatus: "half_time", nextPeriod: 1 };
+      }
+      if (currentPeriod === 1 && status === "half_time") {
+        return { label: "Start 2nd Half", nextStatus: "in_progress", nextPeriod: 2 };
+      }
+      if (currentPeriod === 2 && status === "in_progress") {
+        return { label: "Full Time", nextStatus: "finished", nextPeriod: 2 };
+      }
+    }
+
+    if (structure === "four_quarters") {
+      if (currentPeriod === 1 && status === "in_progress") {
+        return { label: "End Q1", nextStatus: "quarter_break", nextPeriod: 1 };
+      }
+      if (currentPeriod === 1 && status === "quarter_break") {
+        return { label: "Start Q2", nextStatus: "in_progress", nextPeriod: 2 };
+      }
+      if (currentPeriod === 2 && status === "in_progress") {
+        return { label: "Half Time", nextStatus: "half_time", nextPeriod: 2 };
+      }
+      if (currentPeriod === 2 && status === "half_time") {
+        return { label: "Start Q3", nextStatus: "in_progress", nextPeriod: 3 };
+      }
+      if (currentPeriod === 3 && status === "in_progress") {
+        return { label: "End Q3", nextStatus: "quarter_break", nextPeriod: 3 };
+      }
+      if (currentPeriod === 3 && status === "quarter_break") {
+        return { label: "Start Q4", nextStatus: "in_progress", nextPeriod: 4 };
+      }
+      if (currentPeriod === 4 && status === "in_progress") {
+        return { label: "Full Time", nextStatus: "finished", nextPeriod: 4 };
+      }
+    }
+
+    if (structure === "single_period") {
+      if (currentPeriod === 1 && status === "in_progress") {
+        return { label: "Full Time", nextStatus: "finished", nextPeriod: 1 };
+      }
+    }
+
+    return null;
+  };
+
   const recordEvent = async (team: "team_a" | "team_b", eventType: string, points: number) => {
     try {
       const { error } = await supabase.from("events").insert({
@@ -128,13 +189,23 @@ const Scorekeeper = () => {
     setAwaitingConversion(null);
   };
 
-  const updateGameStatus = async (status: string) => {
+  const advanceGameState = async () => {
+    const nextState = getNextGameStateButton();
+    if (!nextState) return;
+
     try {
-      await supabase.from("games").update({ game_status: status }).eq("id", gameId);
-      toast.success(`Game status: ${status}`);
+      await supabase
+        .from("games")
+        .update({ 
+          game_status: nextState.nextStatus,
+          current_period: nextState.nextPeriod 
+        })
+        .eq("id", gameId);
+      
+      toast.success(nextState.label);
     } catch (error) {
-      console.error("Error updating status:", error);
-      toast.error("Failed to update status");
+      console.error("Error updating game state:", error);
+      toast.error("Failed to update game state");
     }
   };
 
@@ -222,14 +293,14 @@ const Scorekeeper = () => {
             <div className="space-y-2">
               <Button
                 onClick={() => handleTry("team_a")}
-                disabled={!!awaitingConversion}
+                disabled={!!awaitingConversion || !isGameInPlay()}
                 className="w-full h-14 font-bold bg-gradient-to-r from-primary to-primary/80"
               >
                 Try (5)
               </Button>
               <Button
                 onClick={() => recordEvent("team_a", "penalty", 3)}
-                disabled={!!awaitingConversion}
+                disabled={!!awaitingConversion || !isGameInPlay()}
                 className="w-full h-14 font-bold"
                 variant="outline"
               >
@@ -237,7 +308,7 @@ const Scorekeeper = () => {
               </Button>
               <Button
                 onClick={() => recordEvent("team_a", "drop_goal", 3)}
-                disabled={!!awaitingConversion}
+                disabled={!!awaitingConversion || !isGameInPlay()}
                 className="w-full h-14 font-bold"
                 variant="outline"
               >
@@ -253,14 +324,14 @@ const Scorekeeper = () => {
             <div className="space-y-2">
               <Button
                 onClick={() => handleTry("team_b")}
-                disabled={!!awaitingConversion}
+                disabled={!!awaitingConversion || !isGameInPlay()}
                 className="w-full h-14 font-bold bg-gradient-to-r from-primary to-primary/80"
               >
                 Try (5)
               </Button>
               <Button
                 onClick={() => recordEvent("team_b", "penalty", 3)}
-                disabled={!!awaitingConversion}
+                disabled={!!awaitingConversion || !isGameInPlay()}
                 className="w-full h-14 font-bold"
                 variant="outline"
               >
@@ -268,7 +339,7 @@ const Scorekeeper = () => {
               </Button>
               <Button
                 onClick={() => recordEvent("team_b", "drop_goal", 3)}
-                disabled={!!awaitingConversion}
+                disabled={!!awaitingConversion || !isGameInPlay()}
                 className="w-full h-14 font-bold"
                 variant="outline"
               >
@@ -280,36 +351,17 @@ const Scorekeeper = () => {
 
         <Card className="p-4">
           <h3 className="font-bold mb-3">Game Controls</h3>
-          <div className="grid grid-cols-2 gap-2">
+          {getNextGameStateButton() ? (
             <Button
-              onClick={() => updateGameStatus("in_progress")}
-              variant="outline"
-              className="h-12"
+              onClick={advanceGameState}
+              className="w-full h-16 text-lg font-bold bg-gradient-to-r from-primary to-primary/80"
+              disabled={game?.game_status === "finished"}
             >
-              Kick-off
+              {getNextGameStateButton()?.label}
             </Button>
-            <Button
-              onClick={() => updateGameStatus("half_time")}
-              variant="outline"
-              className="h-12"
-            >
-              Half-time
-            </Button>
-            <Button
-              onClick={() => updateGameStatus("in_progress")}
-              variant="outline"
-              className="h-12"
-            >
-              2nd Half
-            </Button>
-            <Button
-              onClick={() => updateGameStatus("finished")}
-              variant="outline"
-              className="h-12"
-            >
-              Full-time
-            </Button>
-          </div>
+          ) : (
+            <p className="text-center text-muted-foreground py-4">Game Finished</p>
+          )}
         </Card>
       </div>
     </div>
