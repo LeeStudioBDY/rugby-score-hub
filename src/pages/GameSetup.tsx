@@ -49,6 +49,17 @@ const GameSetup = () => {
 
       if (error) throw error;
 
+      // Store game info in localStorage for quick access
+      const myGames = JSON.parse(localStorage.getItem('myGames') || '[]');
+      myGames.push({
+        id: data.id,
+        token: scorekeeperToken,
+        teamAName,
+        teamBName,
+        createdAt: new Date().toISOString()
+      });
+      localStorage.setItem('myGames', JSON.stringify(myGames));
+
       toast.success("Game created successfully!");
       navigate(`/scorekeeper/${data.id}?token=${scorekeeperToken}`);
     } catch (error) {
