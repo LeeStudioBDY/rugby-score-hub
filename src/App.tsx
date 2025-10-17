@@ -14,25 +14,27 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
-const App = () => (
-  <BrowserRouter>
-    <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/setup" element={<GameSetup />} />
-          <Route path="/scorekeeper/:gameId" element={<Scorekeeper />} />
-          <Route path="/viewer/:gameId" element={<Viewer />} />
-          <Route path="/join" element={<JoinGame />} />
-          <Route path="/about" element={<About />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </TooltipProvider>
-    </QueryClientProvider>
-  </BrowserRouter>
-);
+const App = () => {
+  return (
+    <BrowserRouter>
+      <QueryClientProvider client={queryClient}>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/setup" element={<GameSetup />} />
+            <Route path="/scorekeeper/:gameId" element={<Scorekeeper />} />
+            <Route path="/viewer/:gameId" element={<Viewer />} />
+            <Route path="/join" element={<JoinGame />} />
+            <Route path="/about" element={<About />} />
+            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </TooltipProvider>
+      </QueryClientProvider>
+    </BrowserRouter>
+  );
+};
 
 export default App;
