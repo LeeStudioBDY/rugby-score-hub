@@ -138,19 +138,19 @@ const Scorekeeper = () => {
       return { label: "Kick Off", nextStatus: "in_progress", nextPeriod: 1 };
     }
 
-    if (structure === "two_halves") {
+    if (structure === "2_halves") {
       if (currentPeriod === 1 && status === "in_progress") {
-        return { label: "Half Time", nextStatus: "half_time", nextPeriod: 1 };
+        return { label: "End First Half", nextStatus: "half_time", nextPeriod: 1 };
       }
       if (currentPeriod === 1 && status === "half_time") {
-        return { label: "Start 2nd Half", nextStatus: "in_progress", nextPeriod: 2 };
+        return { label: "Start Second Half", nextStatus: "in_progress", nextPeriod: 2 };
       }
       if (currentPeriod === 2 && status === "in_progress") {
-        return { label: "Full Time", nextStatus: "finished", nextPeriod: 2 };
+        return { label: "End Game", nextStatus: "finished", nextPeriod: 2 };
       }
     }
 
-    if (structure === "four_quarters") {
+    if (structure === "4_quarters") {
       if (currentPeriod === 1 && status === "in_progress") {
         return { label: "End Q1", nextStatus: "quarter_break", nextPeriod: 1 };
       }
@@ -170,13 +170,13 @@ const Scorekeeper = () => {
         return { label: "Start Q4", nextStatus: "in_progress", nextPeriod: 4 };
       }
       if (currentPeriod === 4 && status === "in_progress") {
-        return { label: "Full Time", nextStatus: "finished", nextPeriod: 4 };
+        return { label: "End Game", nextStatus: "finished", nextPeriod: 4 };
       }
     }
 
-    if (structure === "single_period") {
+    if (structure === "1_period") {
       if (currentPeriod === 1 && status === "in_progress") {
-        return { label: "Full Time", nextStatus: "finished", nextPeriod: 1 };
+        return { label: "End Game", nextStatus: "finished", nextPeriod: 1 };
       }
     }
 

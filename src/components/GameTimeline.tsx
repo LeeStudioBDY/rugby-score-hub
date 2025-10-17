@@ -41,11 +41,11 @@ const GameTimeline = ({ events, game }: GameTimelineProps) => {
     // Determine the label based on period and game structure
     if (event.period === 1) {
       return `${minutesElapsed}'`;
-    } else if (game.game_structure === "two_halves" && event.period === 2) {
+    } else if (game.game_structure === "2_halves" && event.period === 2) {
       return `HT+${minutesElapsed}'`;
-    } else if (game.game_structure === "four_quarters") {
+    } else if (game.game_structure === "4_quarters") {
       return `Q${event.period} ${minutesElapsed}'`;
-    } else if (game.game_structure === "single_period") {
+    } else if (game.game_structure === "1_period") {
       return `${minutesElapsed}'`;
     }
     
