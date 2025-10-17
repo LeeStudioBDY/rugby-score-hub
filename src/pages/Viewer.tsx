@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { RefreshCw, Download } from "lucide-react";
+import { RefreshCw } from "lucide-react";
+import GameTimeline from "@/components/GameTimeline";
 
 interface Game {
   id: string;
@@ -15,6 +16,7 @@ interface Game {
   team_a_score: number;
   team_b_score: number;
   game_status: string;
+  game_structure: string;
 }
 
 interface Event {
@@ -119,9 +121,6 @@ const Viewer = () => {
     };
   };
 
-  const formatEventType = (type: string) => {
-    return type.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase());
-  };
 
   if (loading) {
     return (
@@ -172,51 +171,12 @@ const Viewer = () => {
           </div>
           <div className="mt-4 text-center">
             <span className="inline-block px-4 py-2 bg-muted rounded-full text-sm font-semibold">
-              {formatEventType(game.game_status)}
+              {game.game_status.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())}
             </span>
           </div>
         </Card>
 
-        <Card className="p-6">
-          <h3 className="text-xl font-bold mb-4">Timeline</h3>
-          {events.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">No events yet</p>
-          ) : (
-            <div className="space-y-3">
-              {events.map((event) => (
-                <div
-                  key={event.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{
-                        backgroundColor: event.team === "team_a" ? game.team_a_color : game.team_b_color,
-                      }}
-                    />
-                    <div>
-                      <div className="font-semibold">
-                        {event.team === "team_a" ? game.team_a_name : game.team_b_name}
-                      </div>
-                      <div className="text-sm text-muted-foreground">
-                        {formatEventType(event.event_type)}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    {event.points > 0 && (
-                      <div className="font-bold text-lg">+{event.points}</div>
-                    )}
-                    <div className="text-xs text-muted-foreground">
-                      {new Date(event.created_at).toLocaleTimeString()}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
+        <GameTimeline events={events} game={game} />
       </div>
     </div>
   );

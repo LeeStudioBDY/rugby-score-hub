@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, QrCode, Undo } from "lucide-react";
+import { ArrowLeft, QrCode } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import GameTimeline from "@/components/GameTimeline";
 
 interface Game {
   id: string;
@@ -22,6 +23,15 @@ interface Game {
   viewer_token: string;
 }
 
+interface Event {
+  id: string;
+  team: string;
+  event_type: string;
+  points: number;
+  period: number;
+  created_at: string;
+}
+
 const Scorekeeper = () => {
   const { gameId } = useParams();
   const [searchParams] = useSearchParams();
@@ -29,6 +39,7 @@ const Scorekeeper = () => {
   const token = searchParams.get("token");
   
   const [game, setGame] = useState<Game | null>(null);
+  const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [awaitingConversion, setAwaitingConversion] = useState<"team_a" | "team_b" | null>(null);
 
@@ -54,6 +65,16 @@ const Scorekeeper = () => {
 
       if (error) throw error;
       setGame(data);
+
+      // Load events
+      const { data: eventsData, error: eventsError } = await supabase
+        .from("events")
+        .select("*")
+        .eq("game_id", gameId)
+        .order("created_at", { ascending: false });
+
+      if (eventsError) throw eventsError;
+      setEvents(eventsData || []);
     } catch (error) {
       console.error("Error loading game:", error);
       toast.error("Failed to load game");
@@ -64,7 +85,7 @@ const Scorekeeper = () => {
   };
 
   const subscribeToChanges = () => {
-    const channel = supabase
+    const gameChannel = supabase
       .channel(`game-${gameId}`)
       .on(
         "postgres_changes",
@@ -80,8 +101,25 @@ const Scorekeeper = () => {
       )
       .subscribe();
 
+    const eventsChannel = supabase
+      .channel(`events-${gameId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "events",
+          filter: `game_id=eq.${gameId}`,
+        },
+        () => {
+          loadGame();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(gameChannel);
+      supabase.removeChannel(eventsChannel);
     };
   };
 
@@ -371,7 +409,7 @@ const Scorekeeper = () => {
           </Card>
         </div>
 
-        <Card className="p-4">
+        <Card className="p-4 mb-6">
           <h3 className="font-bold mb-3">Game Controls</h3>
           {getNextGameStateButton() ? (
             <Button
@@ -385,6 +423,8 @@ const Scorekeeper = () => {
             <p className="text-center text-muted-foreground py-4">Game Finished</p>
           )}
         </Card>
+
+        <GameTimeline events={events} game={game} />
       </div>
     </div>
   );
