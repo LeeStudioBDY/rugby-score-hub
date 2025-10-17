@@ -79,8 +79,14 @@ const GameTimeline = ({ events, game }: GameTimelineProps) => {
                   
                   {/* Full-width strip for game control */}
                   <div className="relative px-8">
-                    <div className="bg-gradient-to-r from-primary/10 via-primary/20 to-primary/10 border-y-2 border-primary/30 p-4 rounded-lg">
-                      <div className="text-center">
+                    <div className="relative overflow-hidden border-y-2 border-primary/30 p-4 rounded-lg">
+                      <div 
+                        className="absolute inset-0 opacity-5"
+                        style={{
+                          background: `linear-gradient(to right, ${game.team_a_color}, ${game.team_b_color})`
+                        }}
+                      />
+                      <div className="text-center relative">
                         <div className="font-bold text-lg text-primary">
                           {formatEventType(event.event_type)}
                         </div>
