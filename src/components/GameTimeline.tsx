@@ -94,13 +94,10 @@ const GameTimeline = ({ events, game }: GameTimelineProps) => {
                 <div key={event.id} className="relative z-10">
                   {/* Full-width strip for game control - covers center line and dot */}
                   <div className="relative w-full bg-background">
-                    <div className="relative overflow-hidden border-2 border-gray-500 p-4 rounded-lg bg-gray-50 dark:bg-gray-900">
+                    <div className="relative overflow-hidden border-2 border-gray-500 py-2 px-4 rounded-lg bg-gray-50 dark:bg-gray-900">
                       <div className="text-center relative">
-                        <div className="font-bold text-lg text-gray-600 dark:text-gray-300">
+                        <div className="font-bold text-base text-gray-600 dark:text-gray-300">
                           {formatEventType(event.event_type)}
-                        </div>
-                        <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                          {getTimeLabel(event, index, events)}
                         </div>
                       </div>
                     </div>
@@ -120,7 +117,7 @@ const GameTimeline = ({ events, game }: GameTimelineProps) => {
                 {/* Center section with scores and dot */}
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 flex items-center gap-3 z-10">
                   {/* Team A score on left */}
-                  <div className="flex flex-col items-end">
+                  <div className="flex flex-col items-end min-w-[40px]">
                     <div className="text-base font-bold text-muted-foreground">{teamAScore}</div>
                     <div className="text-[9px] text-muted-foreground h-3 leading-none">
                       {isTeamA && getTimeLabel(event, index, events)}
@@ -134,7 +131,7 @@ const GameTimeline = ({ events, game }: GameTimelineProps) => {
                   />
 
                   {/* Team B score on right */}
-                  <div className="flex flex-col items-start">
+                  <div className="flex flex-col items-start min-w-[40px]">
                     <div className="text-base font-bold text-muted-foreground">{teamBScore}</div>
                     <div className="text-[9px] text-muted-foreground h-3 leading-none">
                       {!isTeamA && getTimeLabel(event, index, events)}
@@ -149,7 +146,7 @@ const GameTimeline = ({ events, game }: GameTimelineProps) => {
                       {/* Team A - Left side */}
                       <div className="flex justify-start">
                         <div
-                          className="relative px-3 py-2 rounded-md max-w-[120px] w-full border overflow-hidden"
+                          className="relative px-3 py-2 rounded-md max-w-[160px] w-full border overflow-hidden"
                           style={{ borderColor: teamColor }}
                         >
                           <div
@@ -171,7 +168,7 @@ const GameTimeline = ({ events, game }: GameTimelineProps) => {
                       {/* Team B - Right side */}
                       <div className="flex justify-end">
                         <div
-                          className="relative px-3 py-2 rounded-md max-w-[120px] w-full border overflow-hidden"
+                          className="relative px-3 py-2 rounded-md max-w-[160px] w-full border overflow-hidden"
                           style={{ borderColor: teamColor }}
                         >
                           <div

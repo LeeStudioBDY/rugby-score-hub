@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, QrCode } from "lucide-react";
+import { ArrowLeft, QrCode, Undo } from "lucide-react";
 import { QRCodeSVG } from "qrcode.react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import GameTimeline from "@/components/GameTimeline";
@@ -21,10 +21,12 @@ interface Game {
   current_period: number;
   game_structure: string;
   viewer_token: string;
+  last_heartbeat?: string;
 }
 
 interface Event {
   id: string;
+  game_id?: string;
   team: string;
   event_type: string;
   points: number;
@@ -42,6 +44,7 @@ const Scorekeeper = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(true);
   const [awaitingConversion, setAwaitingConversion] = useState<"team_a" | "team_b" | null>(null);
+  const [syncQueue, setSyncQueue] = useState<Array<() => Promise<void>>>([]);
 
   useEffect(() => {
     if (!gameId || !token) {
@@ -53,6 +56,51 @@ const Scorekeeper = () => {
     loadGame();
     subscribeToChanges();
   }, [gameId, token]);
+
+  // Process sync queue in background
+  useEffect(() => {
+    if (syncQueue.length === 0) return;
+
+    const processSyncQueue = async () => {
+      const operation = syncQueue[0];
+      try {
+        await operation();
+        setSyncQueue(prev => prev.slice(1));
+      } catch (error) {
+        console.error("Sync failed, will retry:", error);
+        // Keep in queue and retry after delay
+        setTimeout(() => {
+          setSyncQueue(prev => [...prev]);
+        }, 2000);
+      }
+    };
+
+    processSyncQueue();
+  }, [syncQueue]);
+
+  // Send heartbeat every 30 seconds to indicate scorekeeper is active
+  useEffect(() => {
+    if (!gameId) return;
+
+    const sendHeartbeat = async () => {
+      try {
+        await supabase
+          .from("games")
+          .update({ last_heartbeat: new Date().toISOString() })
+          .eq("id", gameId);
+      } catch (error) {
+        console.error("Heartbeat failed:", error);
+      }
+    };
+
+    // Send initial heartbeat
+    sendHeartbeat();
+
+    // Send heartbeat every 30 seconds
+    const interval = setInterval(sendHeartbeat, 30000);
+
+    return () => clearInterval(interval);
+  }, [gameId]);
 
   const loadGame = async () => {
     try {
@@ -188,30 +236,55 @@ const Scorekeeper = () => {
   };
 
   const recordEvent = async (team: "team_a" | "team_b", eventType: string, points: number) => {
-    try {
-      const { error } = await supabase.from("events").insert({
-        game_id: gameId,
-        team,
-        event_type: eventType,
-        points,
-        period: game?.current_period || 0,
-      });
+    if (!game || !gameId) return;
 
-      if (error) throw error;
+    // Create optimistic event
+    const optimisticEvent: Event = {
+      id: `temp-${Date.now()}`,
+      game_id: gameId,
+      team,
+      event_type: eventType,
+      points,
+      period: game.current_period || 0,
+      created_at: new Date().toISOString(),
+    };
 
-      const scoreField = team === "team_a" ? "team_a_score" : "team_b_score";
-      const newScore = (game?.[scoreField] || 0) + points;
+    // Update UI immediately (optimistic)
+    setEvents(prev => [optimisticEvent, ...prev]);
+
+    const scoreField = team === "team_a" ? "team_a_score" : "team_b_score";
+    const newScore = (game[scoreField] || 0) + points;
+
+    setGame(prev => prev ? { ...prev, [scoreField]: newScore } : null);
+
+    toast.success(`${eventType.replace("_", " ")} recorded!`);
+
+    // Queue database sync in background
+    setSyncQueue(prev => [...prev, async () => {
+      const { data: insertedEvent, error: insertError } = await supabase
+        .from("events")
+        .insert({
+          game_id: gameId,
+          team,
+          event_type: eventType,
+          points,
+          period: game.current_period || 0,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Replace temp event with real one
+      setEvents(prev => prev.map(e =>
+        e.id === optimisticEvent.id ? insertedEvent : e
+      ));
 
       await supabase
         .from("games")
         .update({ [scoreField]: newScore })
         .eq("id", gameId);
-
-      toast.success(`${eventType.replace("_", " ")} recorded!`);
-    } catch (error) {
-      console.error("Error recording event:", error);
-      toast.error("Failed to record event");
-    }
+    }]);
   };
 
   const handleTry = async (team: "team_a" | "team_b") => {
@@ -224,39 +297,204 @@ const Scorekeeper = () => {
 
     if (made) {
       await recordEvent(awaitingConversion, "conversion", 2);
+    } else {
+      // Record missed conversion with 0 points
+      await recordEvent(awaitingConversion, "conversion_missed", 0);
     }
-    // Don't record missed conversions in the timeline
 
     setAwaitingConversion(null);
   };
 
   const advanceGameState = async () => {
     const nextState = getNextGameStateButton();
-    if (!nextState) return;
+    if (!nextState || !game || !gameId) return;
 
-    try {
-      // Record the game control event
-      await supabase.from("events").insert({
-        game_id: gameId,
-        team: "game_control",
-        event_type: nextState.label.toLowerCase().replace(/ /g, "_"),
-        points: 0,
-        period: nextState.nextPeriod,
-      });
+    const eventType = nextState.label.toLowerCase().replace(/ /g, "_");
 
-      // Update game state
+    // Create optimistic game control event
+    const optimisticEvent: Event = {
+      id: `temp-${Date.now()}`,
+      game_id: gameId,
+      team: "game_control",
+      event_type: eventType,
+      points: 0,
+      period: nextState.nextPeriod,
+      created_at: new Date().toISOString(),
+    };
+
+    // Update UI immediately (optimistic)
+    setEvents(prev => [optimisticEvent, ...prev]);
+    setGame(prev => prev ? {
+      ...prev,
+      game_status: nextState.nextStatus,
+      current_period: nextState.nextPeriod
+    } : null);
+
+    toast.success(nextState.label);
+
+    // Queue database sync in background
+    setSyncQueue(prev => [...prev, async () => {
+      const { data: insertedEvent, error: insertError } = await supabase
+        .from("events")
+        .insert({
+          game_id: gameId,
+          team: "game_control",
+          event_type: eventType,
+          points: 0,
+          period: nextState.nextPeriod,
+        })
+        .select()
+        .single();
+
+      if (insertError) throw insertError;
+
+      // Replace temp event with real one
+      setEvents(prev => prev.map(e =>
+        e.id === optimisticEvent.id ? insertedEvent : e
+      ));
+
       await supabase
         .from("games")
-        .update({ 
+        .update({
           game_status: nextState.nextStatus,
-          current_period: nextState.nextPeriod 
+          current_period: nextState.nextPeriod
         })
         .eq("id", gameId);
-      
-      toast.success(nextState.label);
+    }]);
+  };
+
+  const undoLastEvent = async () => {
+    if (events.length === 0 || !game || !gameId) return;
+
+    const lastEvent = events[0]; // events are in reverse chronological order
+
+    // Update UI immediately (optimistic)
+    setEvents(prev => prev.slice(1)); // Remove last event from UI
+
+    try {
+      // If it's a game control event, we need to restore the previous game state
+      if (lastEvent.team === "game_control") {
+        // Find the previous game control event to determine what state to restore
+        const previousGameControlEvent = events.slice(1).find(e => e.team === "game_control");
+
+        let restoreStatus = "not_started";
+        let restorePeriod = 0;
+
+        if (previousGameControlEvent) {
+          // Determine the state from the previous game control event
+          const eventType = previousGameControlEvent.event_type;
+          restorePeriod = previousGameControlEvent.period;
+
+          if (eventType === "kick_off") {
+            restoreStatus = "in_progress";
+          } else if (eventType === "end_first_half") {
+            restoreStatus = "half_time";
+          } else if (eventType === "start_second_half") {
+            restoreStatus = "in_progress";
+          } else if (eventType === "end_q1") {
+            restoreStatus = "quarter_break";
+          } else if (eventType === "start_q2") {
+            restoreStatus = "in_progress";
+          } else if (eventType === "half_time") {
+            restoreStatus = "half_time";
+          } else if (eventType === "start_q3") {
+            restoreStatus = "in_progress";
+          } else if (eventType === "end_q3") {
+            restoreStatus = "quarter_break";
+          } else if (eventType === "start_q4") {
+            restoreStatus = "in_progress";
+          } else if (eventType === "end_game") {
+            restoreStatus = "finished";
+          }
+        }
+
+        // Update game state optimistically
+        setGame(prev => prev ? {
+          ...prev,
+          game_status: restoreStatus,
+          current_period: restorePeriod
+        } : null);
+
+        setAwaitingConversion(null);
+
+        // Queue database sync in background
+        setSyncQueue(prev => [...prev, async () => {
+          await supabase
+            .from("events")
+            .delete()
+            .eq("id", lastEvent.id);
+
+          await supabase
+            .from("games")
+            .update({
+              game_status: restoreStatus,
+              current_period: restorePeriod
+            })
+            .eq("id", gameId);
+        }]);
+      } else if (lastEvent.event_type === "conversion" || lastEvent.event_type === "conversion_missed") {
+        // Undoing a conversion (made or missed) - restore the awaiting conversion state
+        const scoreField = lastEvent.team === "team_a" ? "team_a_score" : "team_b_score";
+        const newScore = Math.max(0, (game[scoreField] || 0) - lastEvent.points);
+
+        // Update score optimistically (only if points were scored)
+        if (lastEvent.points > 0) {
+          setGame(prev => prev ? { ...prev, [scoreField]: newScore } : null);
+        }
+
+        // Restore awaiting conversion state
+        setAwaitingConversion(lastEvent.team);
+        toast.success("Conversion undone - please record result again");
+
+        // Queue database sync in background
+        setSyncQueue(prev => [...prev, async () => {
+          await supabase
+            .from("events")
+            .delete()
+            .eq("id", lastEvent.id);
+
+          if (lastEvent.points > 0) {
+            await supabase
+              .from("games")
+              .update({ [scoreField]: newScore })
+              .eq("id", gameId);
+          }
+        }]);
+
+        return; // Exit early to keep awaiting conversion state
+      } else {
+        // It's a scoring event - rollback the score
+        const scoreField = lastEvent.team === "team_a" ? "team_a_score" : "team_b_score";
+        const newScore = Math.max(0, (game[scoreField] || 0) - lastEvent.points);
+
+        // Update score optimistically
+        setGame(prev => prev ? { ...prev, [scoreField]: newScore } : null);
+
+        // If undoing a try, clear awaiting conversion
+        if (lastEvent.event_type === "try") {
+          setAwaitingConversion(null);
+        }
+
+        // Queue database sync in background
+        setSyncQueue(prev => [...prev, async () => {
+          await supabase
+            .from("events")
+            .delete()
+            .eq("id", lastEvent.id);
+
+          await supabase
+            .from("games")
+            .update({ [scoreField]: newScore })
+            .eq("id", gameId);
+        }]);
+      }
+
+      toast.success("Event undone");
     } catch (error) {
-      console.error("Error updating game state:", error);
-      toast.error("Failed to update game state");
+      console.error("Error undoing event:", error);
+      toast.error("Failed to undo event");
+      // Revert optimistic update on error
+      await loadGame();
     }
   };
 
@@ -339,7 +577,7 @@ const Scorekeeper = () => {
                 onClick={() => handleConversion(true)}
                 className="h-16 text-lg font-bold bg-gradient-to-r from-primary to-primary/80"
               >
-                Made (+2)
+                Made
               </Button>
               <Button
                 onClick={() => handleConversion(false)}
@@ -369,7 +607,7 @@ const Scorekeeper = () => {
                 variant="outline"
                 style={{ borderColor: game.team_a_color, color: game.team_a_color }}
               >
-                Try (5)
+                Try
               </Button>
               <Button
                 onClick={() => recordEvent("team_a", "penalty", 3)}
@@ -378,7 +616,7 @@ const Scorekeeper = () => {
                 variant="outline"
                 style={{ borderColor: game.team_a_color, color: game.team_a_color }}
               >
-                Penalty (3)
+                Penalty
               </Button>
               <Button
                 onClick={() => recordEvent("team_a", "drop_goal", 3)}
@@ -387,7 +625,7 @@ const Scorekeeper = () => {
                 variant="outline"
                 style={{ borderColor: game.team_a_color, color: game.team_a_color }}
               >
-                Drop Goal (3)
+                Drop Goal
               </Button>
             </div>
           </Card>
@@ -408,7 +646,7 @@ const Scorekeeper = () => {
                 variant="outline"
                 style={{ borderColor: game.team_b_color, color: game.team_b_color }}
               >
-                Try (5)
+                Try
               </Button>
               <Button
                 onClick={() => recordEvent("team_b", "penalty", 3)}
@@ -417,7 +655,7 @@ const Scorekeeper = () => {
                 variant="outline"
                 style={{ borderColor: game.team_b_color, color: game.team_b_color }}
               >
-                Penalty (3)
+                Penalty
               </Button>
               <Button
                 onClick={() => recordEvent("team_b", "drop_goal", 3)}
@@ -426,7 +664,7 @@ const Scorekeeper = () => {
                 variant="outline"
                 style={{ borderColor: game.team_b_color, color: game.team_b_color }}
               >
-                Drop Goal (3)
+                Drop Goal
               </Button>
             </div>
           </Card>
@@ -434,17 +672,28 @@ const Scorekeeper = () => {
 
         <Card className="p-4 mb-6">
           <h3 className="font-bold mb-3">Game Controls</h3>
-          {getNextGameStateButton() ? (
+          <div className="space-y-3">
+            {getNextGameStateButton() ? (
+              <Button
+                onClick={advanceGameState}
+                className="w-full h-16 text-lg font-bold bg-gradient-to-r from-primary to-primary/80"
+                disabled={!!awaitingConversion || game?.game_status === "finished"}
+              >
+                {getNextGameStateButton()?.label}
+              </Button>
+            ) : (
+              <p className="text-center text-muted-foreground py-4">Game Finished</p>
+            )}
             <Button
-              onClick={advanceGameState}
-              className="w-full h-16 text-lg font-bold bg-gradient-to-r from-primary to-primary/80"
-              disabled={game?.game_status === "finished"}
+              onClick={undoLastEvent}
+              variant="outline"
+              className="w-full h-14 font-bold text-destructive border-destructive hover:bg-destructive/10"
+              disabled={events.length === 0}
             >
-              {getNextGameStateButton()?.label}
+              <Undo className="w-4 h-4 mr-2" />
+              {awaitingConversion ? "Undo Conversion" : "Undo Last Event"}
             </Button>
-          ) : (
-            <p className="text-center text-muted-foreground py-4">Game Finished</p>
-          )}
+          </div>
         </Card>
 
         <GameTimeline events={events} game={game} />
